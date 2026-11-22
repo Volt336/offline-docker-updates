@@ -1,0 +1,33 @@
+name: NOMAD Offline Downloader
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download official image
+        run: |
+          docker pull --platform linux/amd64 ghcr.io/crosstalk-solutions/project-nomad:v1.35.1
+
+      - name: Package image
+        run: |
+          docker save ghcr.io/crosstalk-solutions/project-nomad:v1.35.1 | gzip -1 > nomad-v1.35.1-amd64.tar.gz
+          sha256sum nomad-v1.35.1-amd64.tar.gz > SHA256SUMS.txt
+
+      - name: Publish download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v1.35.1 \
+            nomad-v1.35.1-amd64.tar.gz \
+            SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "NOMAD v1.35.1 Offline" \
+            --notes "Official NOMAD AMD64 Docker image packaged for offline installation."
