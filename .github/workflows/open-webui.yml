@@ -1,0 +1,36 @@
+
+name: Open WebUI Offline Docker Update
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package-open-webui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull official AMD64 image
+        run: |
+          docker pull --platform linux/amd64 ghcr.io/open-webui/open-webui:v0.13.4
+
+      - name: Package and split image
+        run: |
+          set -euo pipefail
+          docker save ghcr.io/open-webui/open-webui:v0.13.4 \
+            | gzip -1 \
+            | split -b 900m -d -a 3 - open-webui-v0.13.4-amd64.tar.gz.part-
+          sha256sum open-webui-v0.13.4-amd64.tar.gz.part-* > SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create open-webui-v0.13.4-offline \
+            open-webui-v0.13.4-amd64.tar.gz.part-* \
+            SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Open WebUI v0.13.4 Offline AMD64" \
+            --notes "Official Docker image packaged for offline installation."
